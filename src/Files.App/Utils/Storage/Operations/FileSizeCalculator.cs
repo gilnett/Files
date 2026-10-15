@@ -75,8 +75,6 @@ namespace Files.App.Utils.Storage.Operations
 											// Skip symbolic links and junctions
 											continue;
 
-										var itemPath = Path.Combine(directory, findData.cFileName.ToString());
-
 										// Skip current and parent directory entries
 										var fileName = findData.cFileName.ToString();
 										if (fileName.Equals(".", StringComparison.OrdinalIgnoreCase) ||
@@ -85,13 +83,20 @@ namespace Files.App.Utils.Storage.Operations
 											continue;
 										}
 
+										var itemPath = Path.Combine(directory, fileName);
+
 										if (attributes.HasFlag(FILE_FLAGS_AND_ATTRIBUTES.FILE_ATTRIBUTE_DIRECTORY))
 										{
 											queue.Enqueue(itemPath);
 										}
 										else
 										{
-											ComputeFileSize(itemPath);
+											long size = ((long)findData.nFileSizeHigh << 32) | findData.nFileSizeLow;
+											if (_computedFiles.TryAdd(itemPath, size))
+											{
+												Interlocked.Add(ref _size, size);
+												ItemsCountChanged?.Invoke(ItemsCount);
+											}
 										}
 
 										if (token.IsCancellationRequested)
